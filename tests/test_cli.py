@@ -23,5 +23,11 @@ class TestCLI(unittest.TestCase):
             self.assertEqual(cm.exception.code, 1)
             self.assertIn('usage:', fake_out.getvalue())
 
+    @patch('pepe_tools.api_tester.execute_api_test')
+    def test_api_command_dispatch(self, mock_execute):
+        with patch('sys.argv', ['pepe-tools', 'api', 'GET', 'http://test.com']):
+            cli.main()
+        mock_execute.assert_called_once_with('GET', 'http://test.com', [], None)
+
 if __name__ == '__main__':
     unittest.main()
