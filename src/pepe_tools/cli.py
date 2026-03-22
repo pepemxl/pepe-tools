@@ -7,8 +7,14 @@ def main():
     parser.add_argument(
         "-v", "--version", action="version", version="%(prog)s 0.1.0"
     )
-    # Add your subcommands and arguments here
-    parser.add_argument("command", nargs="?", help="Command to run")
+    subparsers = parser.add_subparsers(dest="command", help="Command to run")
+
+    # API subcommand
+    api_parser = subparsers.add_parser("api", help="Realiza pruebas de API al estilo Postman")
+    api_parser.add_argument("method", choices=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "HEAD"], help="HTTP Method")
+    api_parser.add_argument("url", help="URL to test")
+    api_parser.add_argument("-H", "--header", action="append", help="HTTP Headers format 'Key: Value'", default=[])
+    api_parser.add_argument("-d", "--data", help="Request body data (JSON, urlencoded, etc.)")
 
     args = parser.parse_args()
 
@@ -16,8 +22,11 @@ def main():
         parser.print_help()
         sys.exit(1)
 
-    print(f"Executing command: {args.command}")
-    # Delegate to command handler
+    if args.command == "api":
+        from .api_tester import execute_api_test
+        execute_api_test(args.method, args.url, args.header, args.data)
+    else:
+        print(f"Executing command: {args.command}")
 
 if __name__ == "__main__":
     main()
