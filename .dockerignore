@@ -15,3 +15,5 @@ dist
 build
 .DS_Store
 LOCAL_DATA/*
+Dockerfile
+.env
