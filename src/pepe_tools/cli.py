@@ -19,6 +19,7 @@ def main():
     # Load test subcommand
     load_parser = subparsers.add_parser("load", help="Realiza prueba de carga de API leyendo un archivo JSON")
     load_parser.add_argument("config", help="Ruta al archivo JSON de configuración")
+    load_parser.add_argument("--filter-user", help="Filtra los resultados y estadísticas mostradas por el usuario (credencial) especificado")
 
     args = parser.parse_args()
 
@@ -31,7 +32,7 @@ def main():
         execute_api_test(args.method, args.url, args.header, args.data)
     elif args.command == "load":
         from .load_tester import execute_load_test
-        execute_load_test(args.config)
+        execute_load_test(args.config, args.filter_user)
     else:
         print(f"Executing command: {args.command}")
 

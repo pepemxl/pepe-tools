@@ -8,9 +8,12 @@ import sys
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import requests
 
-def _worker(worker_id, endpoints, duration, results_queue):
+def _worker(worker_id, endpoints, duration, results_queue, credential=None):
     weights = [ep.get("weight", 1) for ep in endpoints]
     start_time = time.time()
+    
+    user_name = credential.get("name", f"worker-{worker_id}") if credential else f"worker-{worker_id}"
+    cred_headers = credential.get("headers", {}) if credential else {}
     
     # Session per worker for connection pooling (simulates a user)
     session = requests.Session()
@@ -21,7 +24,8 @@ def _worker(worker_id, endpoints, duration, results_queue):
         
         method = endpoint.get("method", "GET").upper()
         url = endpoint.get("url")
-        headers = endpoint.get("headers", {})
+        headers = endpoint.get("headers", {}).copy()
+        headers.update(cred_headers)
         body = endpoint.get("body", None)
         
         if not url:
@@ -40,6 +44,7 @@ def _worker(worker_id, endpoints, duration, results_queue):
             
             results_queue.put({
                 "worker": worker_id,
+                "user": user_name,
                 "endpoint": endpoint_name,
                 "latency": latency,
                 "size": size,
@@ -51,6 +56,7 @@ def _worker(worker_id, endpoints, duration, results_queue):
             latency = time.time() - req_start
             results_queue.put({
                 "worker": worker_id,
+                "user": user_name,
                 "endpoint": endpoint_name,
                 "latency": latency,
                 "size": 0,
@@ -58,7 +64,7 @@ def _worker(worker_id, endpoints, duration, results_queue):
                 "error": str(e)
             })
 
-def execute_load_test(config_file: str):
+def execute_load_test(config_file: str, filter_user: str = None):
     try:
         with open(config_file, "r") as f:
             config = json.load(f)
@@ -69,6 +75,7 @@ def execute_load_test(config_file: str):
     duration = config.get("duration_seconds", 60)
     users = config.get("users", 10)
     endpoints = config.get("endpoints", [])
+    credentials = config.get("credentials", [])
     
     if not endpoints:
         print("Error: No endpoints defined in configuration.", file=sys.stderr)
@@ -84,7 +91,8 @@ def execute_load_test(config_file: str):
     with ThreadPoolExecutor(max_workers=users) as executor:
         futures = []
         for i in range(users):
-            futures.append(executor.submit(_worker, i, endpoints, duration, results_queue))
+            cred = credentials[i % len(credentials)] if credentials else None
+            futures.append(executor.submit(_worker, i, endpoints, duration, results_queue, cred))
             
         # Wait for all workers to complete
         for _ in as_completed(futures):
@@ -97,14 +105,20 @@ def execute_load_test(config_file: str):
     sizes = []
     statuses = {}
     errors = 0
-    total_requests = results_queue.qsize()
+    total_requests = 0
     
     all_results = []
     endpoint_stats = {}
     
     while not results_queue.empty():
         res = results_queue.get()
+        
+        # Filter metrics by user if parameter is provided
+        if filter_user and res.get("user") != filter_user:
+            continue
+            
         all_results.append(res)
+        total_requests += 1
         
         ep_name = res.get("endpoint", "Unknown")
         if ep_name not in endpoint_stats:
@@ -184,7 +198,7 @@ def execute_load_test(config_file: str):
 
     try:
         with open(report_path, "w", newline="", encoding="utf-8") as csvfile:
-            fieldnames = ["worker", "endpoint", "latency", "size", "status", "error"]
+            fieldnames = ["worker", "user", "endpoint", "latency", "size", "status", "error"]
             writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
             writer.writeheader()
             for res in all_results:

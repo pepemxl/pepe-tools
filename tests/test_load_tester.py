@@ -29,6 +29,7 @@ class TestLoadTester(unittest.TestCase):
         self.assertEqual(res["status"], 200)
         self.assertEqual(res["size"], 13)
         self.assertEqual(res["endpoint"], "GET http://test.com")
+        self.assertEqual(res["user"], "worker-0")
         self.assertIsNone(res["error"])
 
     @patch('pepe_tools.load_tester._worker')
