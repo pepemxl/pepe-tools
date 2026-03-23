@@ -95,8 +95,11 @@ def execute_load_test(config_file: str):
     errors = 0
     total_requests = results_queue.qsize()
     
+    all_results = []
+    
     while not results_queue.empty():
         res = results_queue.get()
+        all_results.append(res)
         if res["error"]:
             errors += 1
         else:
@@ -138,3 +141,26 @@ def execute_load_test(config_file: str):
         print(f"  Avg:   {total_bytes / len(sizes):.0f}")
         
     print("="*40)
+
+    # Convert results internally to save CSV 
+    import os
+    import csv
+    from datetime import datetime
+
+    timestamp_str = datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
+    report_filename = f"load_test_report_{timestamp_str}.csv"
+    report_dir = os.path.join("LOCAL_DATA", "REPORTS")
+    os.makedirs(report_dir, exist_ok=True)
+    report_path = os.path.join(report_dir, report_filename)
+
+    try:
+        with open(report_path, "w", newline="", encoding="utf-8") as csvfile:
+            fieldnames = ["worker", "latency", "size", "status", "error"]
+            writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+            writer.writeheader()
+            for res in all_results:
+                writer.writerow(res)
+        print(f"\n[+] Report successfully saved to: {report_path}")
+    except Exception as e:
+        print(f"\n[!] Error saving report: {e}", file=sys.stderr)
+
