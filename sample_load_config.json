@@ -1,0 +1,20 @@
+{
+  "duration_seconds": 5,
+  "users": 3,
+  "endpoints": [
+    {
+      "method": "GET",
+      "url": "https://jsonplaceholder.typicode.com/posts/1",
+      "weight": 70
+    },
+    {
+      "method": "POST",
+      "url": "https://jsonplaceholder.typicode.com/posts",
+      "weight": 30,
+      "body": "{\"title\": \"foo\", \"body\": \"bar\", \"userId\": 1}",
+      "headers": {
+        "Content-Type": "application/json"
+      }
+    }
+  ]
+}

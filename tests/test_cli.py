@@ -29,5 +29,11 @@ class TestCLI(unittest.TestCase):
             cli.main()
         mock_execute.assert_called_once_with('GET', 'http://test.com', [], None)
 
+    @patch('pepe_tools.load_tester.execute_load_test')
+    def test_load_command_dispatch(self, mock_load):
+        with patch('sys.argv', ['pepe-tools', 'load', 'config.json']):
+            cli.main()
+        mock_load.assert_called_once_with('config.json')
+
 if __name__ == '__main__':
     unittest.main()

@@ -16,6 +16,10 @@ def main():
     api_parser.add_argument("-H", "--header", action="append", help="HTTP Headers format 'Key: Value'", default=[])
     api_parser.add_argument("-d", "--data", help="Request body data (JSON, urlencoded, etc.)")
 
+    # Load test subcommand
+    load_parser = subparsers.add_parser("load", help="Realiza prueba de carga de API leyendo un archivo JSON")
+    load_parser.add_argument("config", help="Ruta al archivo JSON de configuración")
+
     args = parser.parse_args()
 
     if not args.command:
@@ -25,6 +29,9 @@ def main():
     if args.command == "api":
         from .api_tester import execute_api_test
         execute_api_test(args.method, args.url, args.header, args.data)
+    elif args.command == "load":
+        from .load_tester import execute_load_test
+        execute_load_test(args.config)
     else:
         print(f"Executing command: {args.command}")
 

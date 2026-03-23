@@ -1,0 +1,140 @@
+import json
+import time
+import queue
+import random
+import threading
+import statistics
+import sys
+from concurrent.futures import ThreadPoolExecutor, as_completed
+import requests
+
+def _worker(worker_id, endpoints, duration, results_queue):
+    weights = [ep.get("weight", 1) for ep in endpoints]
+    start_time = time.time()
+    
+    # Session per worker for connection pooling (simulates a user)
+    session = requests.Session()
+
+    while time.time() - start_time < duration:
+        # Select an endpoint based on weight
+        endpoint = random.choices(endpoints, weights=weights, k=1)[0]
+        
+        method = endpoint.get("method", "GET").upper()
+        url = endpoint.get("url")
+        headers = endpoint.get("headers", {})
+        body = endpoint.get("body", None)
+        
+        if not url:
+            continue
+            
+        req_start = time.time()
+        try:
+            response = session.request(method, url, headers=headers, data=body, timeout=10)
+            latency = time.time() - req_start
+            
+            # response size
+            size = len(response.content)
+            status = response.status_code
+            
+            results_queue.put({
+                "worker": worker_id,
+                "latency": latency,
+                "size": size,
+                "status": status,
+                "error": None
+            })
+            
+        except Exception as e:
+            latency = time.time() - req_start
+            results_queue.put({
+                "worker": worker_id,
+                "latency": latency,
+                "size": 0,
+                "status": 0,
+                "error": str(e)
+            })
+
+def execute_load_test(config_file: str):
+    try:
+        with open(config_file, "r") as f:
+            config = json.load(f)
+    except Exception as e:
+        print(f"Error reading config file: {e}", file=sys.stderr)
+        sys.exit(1)
+        
+    duration = config.get("duration_seconds", 60)
+    users = config.get("users", 10)
+    endpoints = config.get("endpoints", [])
+    
+    if not endpoints:
+        print("Error: No endpoints defined in configuration.", file=sys.stderr)
+        sys.exit(1)
+        
+    print(f"Starting Load Test with {users} users for {duration} seconds...")
+    print(f"Targeting {len(endpoints)} endpoint(s).")
+    
+    results_queue = queue.Queue()
+    
+    test_start_time = time.time()
+    
+    with ThreadPoolExecutor(max_workers=users) as executor:
+        futures = []
+        for i in range(users):
+            futures.append(executor.submit(_worker, i, endpoints, duration, results_queue))
+            
+        # Wait for all workers to complete
+        for _ in as_completed(futures):
+            pass
+            
+    actual_duration = time.time() - test_start_time
+    
+    # Process results
+    latencies = []
+    sizes = []
+    statuses = {}
+    errors = 0
+    total_requests = results_queue.qsize()
+    
+    while not results_queue.empty():
+        res = results_queue.get()
+        if res["error"]:
+            errors += 1
+        else:
+            latencies.append(res["latency"])
+            sizes.append(res["size"])
+            status = res["status"]
+            statuses[status] = statuses.get(status, 0) + 1
+            
+    print("\n" + "="*40)
+    print("LOAD TEST RESULTS")
+    print("="*40)
+    print(f"Test Duration:    {actual_duration:.2f} s")
+    print(f"Total Requests:   {total_requests}")
+    
+    if actual_duration > 0:
+        print(f"Reqs per second:  {total_requests / actual_duration:.2f} RPS")
+        
+    success_requests = len(latencies)
+    print(f"Successful Reqs:  {success_requests}")
+    print(f"Failed Reqs:      {errors}")
+    
+    if statuses:
+        print("\nStatus Codes:")
+        for st, count in sorted(statuses.items()):
+            print(f"  {st}: {count}")
+            
+    if latencies:
+        print("\nLatency (seconds):")
+        print(f"  Min:  {min(latencies):.4f}")
+        print(f"  Max:  {max(latencies):.4f}")
+        print(f"  Avg:  {statistics.mean(latencies):.4f}")
+        if len(latencies) > 1:
+            print(f"  P95:  {statistics.quantiles(latencies, n=100)[94]:.4f}")
+            
+    if sizes:
+        total_bytes = sum(sizes)
+        print("\nResponse Size (bytes):")
+        print(f"  Total: {total_bytes}")
+        print(f"  Avg:   {total_bytes / len(sizes):.0f}")
+        
+    print("="*40)
