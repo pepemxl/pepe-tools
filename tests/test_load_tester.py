@@ -30,8 +30,8 @@ class TestLoadTester(unittest.TestCase):
         self.assertEqual(res["size"], 13)
         self.assertIsNone(res["error"])
 
-    @patch('pepe_tools.load_tester.ThreadPoolExecutor')
-    def test_execute_load_test(self, mock_executor):
+    @patch('pepe_tools.load_tester._worker')
+    def test_execute_load_test(self, mock_worker):
         config_data = {
             "duration_seconds": 1,
             "users": 1,
