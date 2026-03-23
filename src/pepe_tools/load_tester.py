@@ -27,6 +27,8 @@ def _worker(worker_id, endpoints, duration, results_queue):
         if not url:
             continue
             
+        endpoint_name = f"{method} {url}"
+            
         req_start = time.time()
         try:
             response = session.request(method, url, headers=headers, data=body, timeout=10)
@@ -38,6 +40,7 @@ def _worker(worker_id, endpoints, duration, results_queue):
             
             results_queue.put({
                 "worker": worker_id,
+                "endpoint": endpoint_name,
                 "latency": latency,
                 "size": size,
                 "status": status,
@@ -48,6 +51,7 @@ def _worker(worker_id, endpoints, duration, results_queue):
             latency = time.time() - req_start
             results_queue.put({
                 "worker": worker_id,
+                "endpoint": endpoint_name,
                 "latency": latency,
                 "size": 0,
                 "status": 0,
@@ -96,10 +100,16 @@ def execute_load_test(config_file: str):
     total_requests = results_queue.qsize()
     
     all_results = []
+    endpoint_stats = {}
     
     while not results_queue.empty():
         res = results_queue.get()
         all_results.append(res)
+        
+        ep_name = res.get("endpoint", "Unknown")
+        if ep_name not in endpoint_stats:
+            endpoint_stats[ep_name] = []
+            
         if res["error"]:
             errors += 1
         else:
@@ -107,6 +117,7 @@ def execute_load_test(config_file: str):
             sizes.append(res["size"])
             status = res["status"]
             statuses[status] = statuses.get(status, 0) + 1
+            endpoint_stats[ep_name].append(res["latency"])
             
     print("\n" + "="*40)
     print("LOAD TEST RESULTS")
@@ -140,6 +151,24 @@ def execute_load_test(config_file: str):
         print(f"  Total: {total_bytes}")
         print(f"  Avg:   {total_bytes / len(sizes):.0f}")
         
+    if endpoint_stats:
+        print("\n" + "-"*40)
+        print("ENDPOINT SUMMARY")
+        print("-"*40)
+        for ep, ep_lats in sorted(endpoint_stats.items()):
+            print(f"\n[{ep}] ({len(ep_lats)} successful reqs):")
+            if ep_lats:
+                quant = statistics.quantiles(ep_lats, n=100) if len(ep_lats) >= 2 else None
+                p50 = quant[49] if quant else ep_lats[0]
+                p75 = quant[74] if quant else ep_lats[0]
+                p90 = quant[89] if quant else ep_lats[0]
+                p99 = quant[98] if quant else ep_lats[0]
+                
+                print(f"  Avg: {statistics.mean(ep_lats):.4f}s")
+                print(f"  Min: {min(ep_lats):.4f}s  |  Max: {max(ep_lats):.4f}s")
+                print(f"  P50: {p50:.4f}s  |  P75: {p75:.4f}s")
+                print(f"  P90: {p90:.4f}s  |  P99: {p99:.4f}s")
+
     print("="*40)
 
     # Convert results internally to save CSV 
@@ -155,7 +184,7 @@ def execute_load_test(config_file: str):
 
     try:
         with open(report_path, "w", newline="", encoding="utf-8") as csvfile:
-            fieldnames = ["worker", "latency", "size", "status", "error"]
+            fieldnames = ["worker", "endpoint", "latency", "size", "status", "error"]
             writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
             writer.writeheader()
             for res in all_results:
