@@ -8,7 +8,7 @@ import sys
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import requests
 
-def _worker(worker_id, endpoints, duration, results_queue, credential=None):
+def _worker(worker_id, endpoints, duration, results_queue, credential=None, extra_headers=None):
     weights = [ep.get("weight", 1) for ep in endpoints]
     start_time = time.time()
     
@@ -25,6 +25,8 @@ def _worker(worker_id, endpoints, duration, results_queue, credential=None):
         method = endpoint.get("method", "GET").upper()
         url = endpoint.get("url")
         headers = endpoint.get("headers", {}).copy()
+        if extra_headers:
+            headers.update(extra_headers)
         headers.update(cred_headers)
         body = endpoint.get("body", None)
         
@@ -64,7 +66,7 @@ def _worker(worker_id, endpoints, duration, results_queue, credential=None):
                 "error": str(e)
             })
 
-def execute_load_test(config_file: str, filter_user: str = None):
+def execute_load_test(config_file: str, filter_user: str = None, token: str = None, custom_headers: list = None):
     try:
         with open(config_file, "r") as f:
             config = json.load(f)
@@ -86,13 +88,22 @@ def execute_load_test(config_file: str, filter_user: str = None):
     
     results_queue = queue.Queue()
     
+    extra_headers = {}
+    if token:
+        extra_headers["Authorization"] = f"Bearer {token}"
+    if custom_headers:
+        for h in custom_headers:
+            if ":" in h:
+                k, v = h.split(":", 1)
+                extra_headers[k.strip()] = v.strip()
+    
     test_start_time = time.time()
     
     with ThreadPoolExecutor(max_workers=users) as executor:
         futures = []
         for i in range(users):
             cred = credentials[i % len(credentials)] if credentials else None
-            futures.append(executor.submit(_worker, i, endpoints, duration, results_queue, cred))
+            futures.append(executor.submit(_worker, i, endpoints, duration, results_queue, cred, extra_headers))
             
         # Wait for all workers to complete
         for _ in as_completed(futures):
