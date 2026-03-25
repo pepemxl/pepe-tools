@@ -66,7 +66,7 @@ def _worker(worker_id, endpoints, duration, results_queue, credential=None, extr
                 "error": str(e)
             })
 
-def execute_load_test(config_file: str, filter_user: str = None, token: str = None, custom_headers: list = None):
+def execute_load_test(config_file: str, filter_user: str = None, token: str = None, custom_headers: list = None, env_file: str = None):
     try:
         with open(config_file, "r") as f:
             config = json.load(f)
@@ -74,6 +74,32 @@ def execute_load_test(config_file: str, filter_user: str = None, token: str = No
         print(f"Error reading config file: {e}", file=sys.stderr)
         sys.exit(1)
         
+    if env_file:
+        try:
+            with open(env_file, "r", encoding="utf-8") as f:
+                env_data = json.load(f)
+                env_vars = {}
+                for val in env_data.get("values", []):
+                    if val.get("enabled", True):
+                        env_vars[val["key"]] = val["value"]
+                        
+                def replace_vars(obj):
+                    if isinstance(obj, str):
+                        res = obj
+                        for k, v in env_vars.items():
+                            res = res.replace(f"{{{{{k}}}}}", str(v))
+                        return res
+                    elif isinstance(obj, dict):
+                        return {k: replace_vars(v) for k, v in obj.items()}
+                    elif isinstance(obj, list):
+                        return [replace_vars(item) for item in obj]
+                    return obj
+                    
+                config = replace_vars(config)
+        except Exception as e:
+            print(f"Error reading environment file: {e}", file=sys.stderr)
+            sys.exit(1)
+
     duration = config.get("duration_seconds", 60)
     users = config.get("users", 10)
     endpoints = config.get("endpoints", [])
