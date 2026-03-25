@@ -33,7 +33,7 @@ class TestCLI(unittest.TestCase):
     def test_load_command_dispatch(self, mock_load):
         with patch('sys.argv', ['pepe-tools', 'load', 'config.json']):
             cli.main()
-        mock_load.assert_called_once_with('config.json', None, None, [])
+        mock_load.assert_called_once_with('config.json', None, None, [], None)
 
 if __name__ == '__main__':
     unittest.main()
