@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cámara PWA - Canvas</title>
+    <link rel="manifest" href="manifest.json">
+    <link rel="stylesheet" href="style.css">
+
+    <!-- Iconos para PWA (puedes crearlos o usar placeholders) -->
+    <link rel="icon" href="icon-192.png" sizes="192x192">
+    <meta name="theme-color" content="#2196F3">
+</head>
+
+<body>
+    <h1>Cámara PWA con Canvas</h1>
+
+    <div class="container">
+        <video id="video" autoplay playsinline></video>
+
+        <div class="controls">
+            <button id="btnStart">Iniciar Cámara</button>
+            <button id="btnStop">Detener Cámara</button>
+            <button id="btnCapture">Capturar Imagen en Canvas</button>
+            <button id="btnSwitch">Cambiar Cámara (trasera/frontal)</button>
+        </div>
+
+        <canvas id="canvas" width="640" height="480"></canvas>
+
+        <div id="photoContainer">
+            <h3>Imagen Capturada</h3>
+            <img id="photo" alt="Foto capturada">
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+
+</html>
