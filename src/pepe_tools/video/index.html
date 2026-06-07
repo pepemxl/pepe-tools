@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cámara PWA - Canvas</title>
+    <title>Cámara</title>
     <link rel="manifest" href="manifest.json">
     <link rel="stylesheet" href="style.css">
 
@@ -14,7 +14,7 @@
 </head>
 
 <body>
-    <h1>Cámara PWA con Canvas</h1>
+    <h1>Cámara con Filtros, Grabación y Guardado</h1>
 
     <div class="container">
         <video id="video" autoplay playsinline></video>
@@ -22,16 +22,32 @@
         <div class="controls">
             <button id="btnStart">Iniciar Cámara</button>
             <button id="btnStop">Detener Cámara</button>
-            <button id="btnCapture">Capturar Imagen en Canvas</button>
             <button id="btnSwitch">Cambiar Cámara (trasera/frontal)</button>
+
+            <select id="filterSelect">
+                <option value="none">Sin filtro</option>
+                <option value="grayscale">Grayscale</option>
+                <option value="sepia">Sepia</option>
+                <option value="invert">Invertir</option>
+                <option value="blur">Desenfoque</option>
+                <option value="contrast">Contraste</option>
+                <option value="brightness">Brillo</option>
+            </select>
+
+            <button id="btnCapture">Capturar Imagen</button>
+            <button id="btnRecord" style="background: #f44336;">Grabar Video</button>
+            <!--<button id="btnStopRecord" style="background: #f44336;">Detener Grabación</button>-->
         </div>
+
 
         <canvas id="canvas" width="640" height="480"></canvas>
 
-        <div id="photoContainer">
+        <div id="status"></div>
+
+        <!--<div id="photoContainer">
             <h3>Imagen Capturada</h3>
             <img id="photo" alt="Foto capturada">
-        </div>
+        </div>-->
     </div>
 
     <script src="app.js"></script>
